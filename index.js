@@ -10,31 +10,32 @@ app.all('/', async (req, res) => {
     : req.method === 'POST'
     ? process.env.URL_POST
     : null;
+
   if (!target) {
     return res.status(405).send('Method not allowed');
   }
 
   try {
-    const options = {
+    const response = await got(target, {
       method: req.method,
-      headers: req.headers,
+      headers: {
+        ...req.headers,
+        'user-agent': 'Mozilla/5.0 (Node.js Proxy)'
+      },
+      body: req.body,
       responseType: 'buffer',
-      // Désactiver la vérification SSL pour Railway
+      followRedirect: true,
       https: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false // ⚠️ Désactive la vérif SSL - temporaire
       }
-    };
-    
-    // Ajouter le body seulement pour POST/PUT/PATCH
-    if (req.method !== 'GET' && req.body) {
-      options.body = req.body;
-    }
-    
-    const response = await got(target, options);
-    res.status(response.statusCode).set(response.headers).send(response.body);
+    });
+
+    res.status(response.statusCode)
+       .set(response.headers)
+       .send(response.body);
   } catch (error) {
     console.error('Proxy error:', error.message);
-    res.status(502).send('Bad Gateway');
+    res.status(502).send('Bad Gateway: ' + error.message);
   }
 });
 
