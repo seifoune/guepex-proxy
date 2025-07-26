@@ -3,8 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const https = require('https');
-const http = require('http');
+const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,58 +19,39 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Fonction pour faire des requêtes HTTP/HTTPS
-function makeRequest(url, options) {
-    return new Promise((resolve, reject) => {
-        const urlObj = new URL(url);
-        const isHttps = urlObj.protocol === 'https:';
-        const client = isHttps ? https : http;
-        
-        const requestOptions = {
-            hostname: urlObj.hostname,
-            port: urlObj.port || (isHttps ? 443 : 80),
-            path: urlObj.pathname + urlObj.search,
+// Fonction pour faire des requêtes HTTP/HTTPS avec node-fetch
+async function makeRequest(url, options) {
+    try {
+        const fetchOptions = {
             method: options.method,
-            headers: options.headers,
-            // Options TLS pour résoudre les problèmes de connexion sur Railway
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'YalGuep-Proxy/1.0',
+                ...options.headers
+            },
             timeout: 30000, // 30 secondes de timeout
-            rejectUnauthorized: false, // Ignorer les erreurs de certificat
-            servername: urlObj.hostname // Spécifier le nom du serveur pour SNI
+            // Options pour ignorer les erreurs SSL/TLS
+            rejectUnauthorized: false
         };
         
-        const req = client.request(requestOptions, (res) => {
-            let data = '';
-            
-            res.on('data', (chunk) => {
-                data += chunk;
-            });
-            
-            res.on('end', () => {
-                resolve({
-                    statusCode: res.statusCode,
-                    headers: res.headers,
-                    data: data
-                });
-            });
-        });
-        
-        req.on('error', (error) => {
-            console.error('Erreur de requête:', error.message);
-            reject(error);
-        });
-        
-        req.on('timeout', () => {
-            console.error('Timeout de la requête vers:', url);
-            req.destroy();
-            reject(new Error('Timeout de la requête'));
-        });
-        
         if (options.body) {
-            req.write(options.body);
+            fetchOptions.body = options.body;
         }
         
-        req.end();
-    });
+        console.log(`Envoi de la requête vers: ${url}`);
+        const response = await fetch(url, fetchOptions);
+        
+        const data = await response.text();
+        
+        return {
+            statusCode: response.status,
+            headers: response.headers.raw(),
+            data: data
+        };
+    } catch (error) {
+        console.error('Erreur de requête:', error.message);
+        throw error;
+    }
 }
 
 // Route de santé pour vérifier que le serveur fonctionne
