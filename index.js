@@ -5,9 +5,10 @@ const app = express();
 app.use(express.raw({ type: '*/*' }));
 
 app.all('/', async (req, res) => {
-  const target = req.method === 'GET'
+  const method = req.method;
+  const target = method === 'GET'
     ? process.env.URL_GET
-    : req.method === 'POST'
+    : method === 'POST'
     ? process.env.URL_POST
     : null;
 
@@ -16,19 +17,25 @@ app.all('/', async (req, res) => {
   }
 
   try {
-    const response = await got(target, {
-      method: req.method,
+    const options = {
+      method,
       headers: {
         ...req.headers,
         'user-agent': 'Mozilla/5.0 (Node.js Proxy)'
       },
-      body: req.body,
       responseType: 'buffer',
       followRedirect: true,
       https: {
-        rejectUnauthorized: false // ⚠️ Désactive la vérif SSL - temporaire
+        rejectUnauthorized: false // ⚠️ temporaire si certif cible invalide
       }
-    });
+    };
+
+    // Ajouter le body seulement si ce n'est PAS un GET
+    if (method !== 'GET') {
+      options.body = req.body;
+    }
+
+    const response = await got(target, options);
 
     res.status(response.statusCode)
        .set(response.headers)
