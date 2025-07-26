@@ -26,12 +26,12 @@ app.all('/', async (req, res) => {
       responseType: 'buffer',
       followRedirect: true,
       https: {
-        rejectUnauthorized: false // ⚠️ temporaire si certif cible invalide
+        rejectUnauthorized: false
       }
     };
 
-    // Ajouter le body seulement si ce n'est PAS un GET
-    if (method !== 'GET') {
+    // ✅ N’ajoute le body QUE si la méthode le supporte
+    if (!['GET', 'HEAD'].includes(method)) {
       options.body = req.body;
     }
 
