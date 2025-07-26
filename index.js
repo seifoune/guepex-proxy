@@ -1,56 +1,11 @@
-const express = require('express');
-const got = require('got');
-const app = express();
+import tls from 'tls';
+import https from 'https';
 
-app.use(express.raw({ type: '*/*' }));
+const url = process.env.URL_GET;
 
-app.all('/', async (req, res) => {
-  const method = req.method;
-  const target = method === 'GET'
-    ? process.env.URL_GET
-    : method === 'POST'
-    ? process.env.URL_POST
-    : null;
-
-  if (!target) {
-    return res.status(405).send('Method not allowed');
-  }
-
-  try {
-    const options = {
-      method,
-      headers: {
-        ...req.headers,
-        'user-agent': 'Mozilla/5.0 (Node.js Proxy)'
-      },
-      responseType: 'buffer',
-      followRedirect: true,
-      timeout: {
-        request: 8000 // délai raisonnable
-      },
-      https: {
-        rejectUnauthorized: false // ⚠️ temporaire : accepte tous les certifs
-      }
-    };
-
-    // ✅ Ne pas inclure body pour GET/HEAD
-    if (!['GET', 'HEAD'].includes(method)) {
-      options.body = req.body;
-    }
-
-    const response = await got(target, options);
-
-    res.status(response.statusCode)
-       .set(response.headers)
-       .send(response.body);
-
-  } catch (error) {
-    console.error('Proxy error:', error.message);
-    res.status(502).send('Bad Gateway: ' + error.message);
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Listening on port ${PORT}`);
+https.get(url, { agent: new https.Agent({ rejectUnauthorized: false }) }, (res) => {
+  console.log('Code de status:', res.statusCode);
+  res.on('data', (d) => process.stdout.write(d));
+}).on('error', err => {
+  console.error('ERREUR TLS:', err.message);
 });
