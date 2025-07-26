@@ -19,6 +19,10 @@ app.all('/', async (req, res) => {
       method: req.method,
       headers: req.headers,
       responseType: 'buffer',
+      // Désactiver la vérification SSL pour Railway
+      https: {
+        rejectUnauthorized: false
+      }
     };
     
     // Ajouter le body seulement pour POST/PUT/PATCH
