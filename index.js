@@ -25,12 +25,15 @@ app.all('/', async (req, res) => {
       },
       responseType: 'buffer',
       followRedirect: true,
+      timeout: {
+        request: 8000 // délai raisonnable
+      },
       https: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false // ⚠️ temporaire : accepte tous les certifs
       }
     };
 
-    // ✅ N’ajoute le body QUE si la méthode le supporte
+    // ✅ Ne pas inclure body pour GET/HEAD
     if (!['GET', 'HEAD'].includes(method)) {
       options.body = req.body;
     }
@@ -40,6 +43,7 @@ app.all('/', async (req, res) => {
     res.status(response.statusCode)
        .set(response.headers)
        .send(response.body);
+
   } catch (error) {
     console.error('Proxy error:', error.message);
     res.status(502).send('Bad Gateway: ' + error.message);
