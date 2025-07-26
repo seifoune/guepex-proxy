@@ -19,9 +19,10 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Fonction pour faire des requêtes HTTP/HTTPS avec node-fetch
+// Fonction pour faire des requêtes HTTP/HTTPS avec gestion d'erreur robuste
 async function makeRequest(url, options) {
     try {
+        // Configuration fetch avec options TLS désactivées
         const fetchOptions = {
             method: options.method,
             headers: {
@@ -29,9 +30,13 @@ async function makeRequest(url, options) {
                 'User-Agent': 'YalGuep-Proxy/1.0',
                 ...options.headers
             },
-            timeout: 30000, // 30 secondes de timeout
-            // Options pour ignorer les erreurs SSL/TLS
-            rejectUnauthorized: false
+            timeout: 30000,
+            // Désactiver complètement la vérification SSL/TLS
+            rejectUnauthorized: false,
+            // Forcer l'utilisation de HTTP/1.1
+            keepAlive: false,
+            // Ignorer les erreurs de certificat
+            checkServerIdentity: () => undefined
         };
         
         if (options.body) {
@@ -39,18 +44,37 @@ async function makeRequest(url, options) {
         }
         
         console.log(`Envoi de la requête vers: ${url}`);
-        const response = await fetch(url, fetchOptions);
         
+        // Utiliser un agent HTTPS personnalisé pour ignorer les erreurs TLS
+        const https = require('https');
+        const agent = new https.Agent({
+            rejectUnauthorized: false,
+            checkServerIdentity: () => undefined
+        });
+        
+        fetchOptions.agent = agent;
+        
+        const response = await fetch(url, fetchOptions);
         const data = await response.text();
         
         return {
             statusCode: response.status,
-            headers: response.headers.raw(),
+            headers: response.headers.raw ? response.headers.raw() : response.headers,
             data: data
         };
     } catch (error) {
         console.error('Erreur de requête:', error.message);
-        throw error;
+        
+        // En cas d'erreur, retourner une réponse d'erreur au lieu de planter
+        return {
+            statusCode: 502,
+            headers: {},
+            data: JSON.stringify({
+                error: 'Erreur de connexion au serveur de destination',
+                message: error.message,
+                timestamp: new Date().toISOString()
+            })
+        };
     }
 }
 
@@ -117,8 +141,23 @@ app.all('*', async (req, res) => {
         // Envoi de la requête vers l'URL de destination
         const response = await makeRequest(destinationUrl.toString(), requestOptions);
         
-        // Envoi de la réponse au client
-        res.status(response.statusCode).set(response.headers).send(response.data);
+        // Envoi de la réponse au client avec gestion des headers
+        res.status(response.statusCode);
+        
+        // Gestion des headers - éviter les arrays
+        if (response.headers) {
+            Object.keys(response.headers).forEach(key => {
+                const value = response.headers[key];
+                if (Array.isArray(value)) {
+                    // Si c'est un array, prendre le premier élément
+                    res.set(key, value[0]);
+                } else {
+                    res.set(key, value);
+                }
+            });
+        }
+        
+        res.send(response.data);
         
         console.log(`Réponse envoyée avec le statut: ${response.statusCode}`);
         
