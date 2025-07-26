@@ -15,12 +15,18 @@ app.all('/', async (req, res) => {
   }
 
   try {
-    const response = await got(target, {
+    const options = {
       method: req.method,
       headers: req.headers,
-      body: req.body,
       responseType: 'buffer',
-    });
+    };
+    
+    // Ajouter le body seulement pour POST/PUT/PATCH
+    if (req.method !== 'GET' && req.body) {
+      options.body = req.body;
+    }
+    
+    const response = await got(target, options);
     res.status(response.statusCode).set(response.headers).send(response.body);
   } catch (error) {
     console.error('Proxy error:', error.message);
