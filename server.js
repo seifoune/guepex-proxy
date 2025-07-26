@@ -32,7 +32,11 @@ function makeRequest(url, options) {
             port: urlObj.port || (isHttps ? 443 : 80),
             path: urlObj.pathname + urlObj.search,
             method: options.method,
-            headers: options.headers
+            headers: options.headers,
+            // Options TLS pour résoudre les problèmes de connexion sur Railway
+            timeout: 30000, // 30 secondes de timeout
+            rejectUnauthorized: false, // Ignorer les erreurs de certificat
+            servername: urlObj.hostname // Spécifier le nom du serveur pour SNI
         };
         
         const req = client.request(requestOptions, (res) => {
@@ -52,7 +56,14 @@ function makeRequest(url, options) {
         });
         
         req.on('error', (error) => {
+            console.error('Erreur de requête:', error.message);
             reject(error);
+        });
+        
+        req.on('timeout', () => {
+            console.error('Timeout de la requête vers:', url);
+            req.destroy();
+            reject(new Error('Timeout de la requête'));
         });
         
         if (options.body) {
