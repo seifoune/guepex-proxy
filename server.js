@@ -5,6 +5,9 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const fetch = require('node-fetch');
 
+// Désactiver la vérification SSL pour Railway
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -22,7 +25,9 @@ app.use(express.urlencoded({ extended: true }));
 // Fonction pour faire des requêtes HTTP/HTTPS avec gestion d'erreur robuste
 async function makeRequest(url, options) {
     try {
-        // Configuration fetch avec options TLS désactivées
+        console.log(`Envoi de la requête vers: ${url}`);
+        
+        // Configuration fetch simple sans agent personnalisé
         const fetchOptions = {
             method: options.method,
             headers: {
@@ -30,29 +35,12 @@ async function makeRequest(url, options) {
                 'User-Agent': 'YalGuep-Proxy/1.0',
                 ...options.headers
             },
-            timeout: 30000,
-            // Désactiver complètement la vérification SSL/TLS
-            rejectUnauthorized: false,
-            // Forcer l'utilisation de HTTP/1.1
-            keepAlive: false,
-            // Ignorer les erreurs de certificat
-            checkServerIdentity: () => undefined
+            timeout: 30000
         };
         
         if (options.body) {
             fetchOptions.body = options.body;
         }
-        
-        console.log(`Envoi de la requête vers: ${url}`);
-        
-        // Utiliser un agent HTTPS personnalisé pour ignorer les erreurs TLS
-        const https = require('https');
-        const agent = new https.Agent({
-            rejectUnauthorized: false,
-            checkServerIdentity: () => undefined
-        });
-        
-        fetchOptions.agent = agent;
         
         const response = await fetch(url, fetchOptions);
         const data = await response.text();
@@ -72,7 +60,8 @@ async function makeRequest(url, options) {
             data: JSON.stringify({
                 error: 'Erreur de connexion au serveur de destination',
                 message: error.message,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                url: url
             })
         };
     }
@@ -185,8 +174,8 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`🚀 YalGuep Proxy démarré sur le port ${PORT}`);
     console.log(`📡 GET requests → ${GET_REDIRECT_URL}`);
-    console.log(`📡 POST requests → ${POST_REDIRECT_URL}`);
-    console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+    console.log(`�� POST requests → ${POST_REDIRECT_URL}`);
+    console.log(`�� Health check: http://localhost:${PORT}/health`);
 });
 
-module.exports = app; 
+module.exports = app;
