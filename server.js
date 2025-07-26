@@ -27,23 +27,25 @@ async function makeRequest(url, options) {
     try {
         console.log(`Envoi de la requête vers: ${url}`);
         
-        // Configuration fetch simple sans agent personnalisé
+        // Configuration fetch ultra-simple pour Railway
         const fetchOptions = {
             method: options.method,
             headers: {
                 'Content-Type': 'application/json',
-                'User-Agent': 'YalGuep-Proxy/1.0',
-                ...options.headers
-            },
-            timeout: 30000
+                'User-Agent': 'YalGuep-Proxy/1.0'
+            }
         };
         
         if (options.body) {
             fetchOptions.body = options.body;
         }
         
+        console.log('Options fetch:', JSON.stringify(fetchOptions, null, 2));
+        
         const response = await fetch(url, fetchOptions);
         const data = await response.text();
+        
+        console.log(`Réponse reçue: ${response.status} - ${data.substring(0, 100)}...`);
         
         return {
             statusCode: response.status,
@@ -51,7 +53,14 @@ async function makeRequest(url, options) {
             data: data
         };
     } catch (error) {
-        console.error('Erreur de requête:', error.message);
+        console.error('Erreur de requête détaillée:', {
+            message: error.message,
+            code: error.code,
+            errno: error.errno,
+            syscall: error.syscall,
+            hostname: error.hostname,
+            url: url
+        });
         
         // En cas d'erreur, retourner une réponse d'erreur au lieu de planter
         return {
@@ -60,6 +69,7 @@ async function makeRequest(url, options) {
             data: JSON.stringify({
                 error: 'Erreur de connexion au serveur de destination',
                 message: error.message,
+                code: error.code,
                 timestamp: new Date().toISOString(),
                 url: url
             })
@@ -77,6 +87,16 @@ app.get('/health', (req, res) => {
             getRedirectUrl: GET_REDIRECT_URL,
             postRedirectUrl: POST_REDIRECT_URL
         }
+    });
+});
+
+// Route de test simple
+app.get('/test', (req, res) => {
+    res.status(200).json({
+        message: 'Test réussi ! Le proxy fonctionne.',
+        timestamp: new Date().toISOString(),
+        method: 'GET',
+        url: req.url
     });
 });
 
