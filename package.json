@@ -1,6 +1,7 @@
 {
   "name": "method-proxy",
   "version": "1.0.0",
+  "description": "Simple method-based proxy (GET/POST) for Bubble or external webhook redirection.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -8,5 +9,14 @@
   "dependencies": {
     "express": "^4.18.2",
     "got": "11.8.5"
-  }
+  },
+  "keywords": [
+    "proxy",
+    "webhook",
+    "express",
+    "bubble",
+    "redirect"
+  ],
+  "author": "Toi",
+  "license": "MIT"
 }
