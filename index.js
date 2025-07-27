@@ -22,12 +22,9 @@ app.all('/', async (req, res) => {
       responseType: 'buffer',
       followRedirect: true,
       timeout: 7000,
-      https: {
-        rejectUnauthorized: false // ✅ TLS fix (déplacé ici)
-      }
+      rejectUnauthorized: false  // got@11 supporte encore cette syntaxe ici
     };
 
-    // ✅ Ne pas inclure de body pour GET/HEAD
     if (!['GET', 'HEAD'].includes(method)) {
       options.body = req.body;
     }
