@@ -1,11 +1,17 @@
 const express = require('express');
-const axios = require('axios');
-const app = express();
+const fetch = require('node-fetch');
+const https = require('https');
 
+const app = express();
 const PORT = process.env.PORT || 8080;
 
 const URL_GET = process.env.URL_GET || 'https://managiiha.bubbleapps.io/version-test/api/1.1/wf/webhook_crc_validation';
 const URL_POST = process.env.URL_POST || 'https://managiiha.bubbleapps.io/version-test/api/1.1/wf/webhook_events/initialize';
+
+const agent = new https.Agent({
+  keepAlive: true,
+  rejectUnauthorized: false // Si le certificat TLS est mal reconnu
+});
 
 app.use(express.json());
 
@@ -16,23 +22,26 @@ app.all('*', async (req, res) => {
   console.log(`➡️ Reçu une requête ${method} - Redirection vers : ${targetUrl}`);
 
   try {
-    const response = await axios({
+    const options = {
       method,
-      url: targetUrl,
       headers: {
-        'user-agent': 'Mozilla/5.0 (compatible; RailwayBot/1.0)',
         ...req.headers,
+        'User-Agent': 'Node-Fetch-Agent',
       },
-      data: method !== 'GET' ? req.body : undefined,
-      timeout: 10000,
-      httpsAgent: new (require('https').Agent)({
-        rejectUnauthorized: false, // Bypass TLS check
-      }),
-    });
+      agent
+    };
 
-    res.status(response.status).send(response.data);
-  } catch (error) {
-    console.error('🔥 ERREUR Proxy :', error.message);
+    if (method !== 'GET') {
+      options.body = JSON.stringify(req.body);
+      options.headers['Content-Type'] = 'application/json';
+    }
+
+    const response = await fetch(targetUrl, options);
+    const responseBody = await response.text();
+
+    res.status(response.status).send(responseBody);
+  } catch (err) {
+    console.error('🔥 ERREUR Proxy :', err.message);
     res.status(502).send('Erreur de redirection proxy');
   }
 });
